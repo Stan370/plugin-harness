@@ -1,0 +1,14 @@
+{
+  "name": "plugin-harness",
+  "version": "1.0.0",
+  "description": "本地运行、支持插件扩展的 AI Agent Harness（CLI + 本地 Web）",
+  "license": "MIT",
+  "private": true,
+  "bin": { "harness": "bin/harness.js" },
+  "engines": { "node": ">=22.13.0" },
+  "scripts": {
+    "start": "node bin/harness.js start",
+    "setup": "node bin/harness.js setup",
+    "test": "node --test --test-concurrency=1 test/*.test.js"
+  }
+}

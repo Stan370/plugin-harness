@@ -1,0 +1,69 @@
+{
+  "id": "weather",
+  "name": "天气",
+  "version": "1.1.0",
+  "description": "v1.1：新增空气质量（AQI）。需要额外的网络权限 air-quality-api.open-meteo.com —— 用于演示「更新时申请新权限」。",
+  "author": "Plugin Harness Team",
+  "apiVersion": 1,
+  "engines": {
+    "harness": "^1.0.0"
+  },
+  "main": "index.js",
+  "permissions": {
+    "network": [
+      "geocoding-api.open-meteo.com",
+      "api.open-meteo.com",
+      "air-quality-api.open-meteo.com"
+    ]
+  },
+  "contributes": {
+    "tools": [
+      {
+        "name": "current",
+        "description": "Get the current weather (temperature, conditions, humidity, wind) for a city. City names in any language.",
+        "input": {
+          "type": "object",
+          "properties": {
+            "city": {
+              "type": "string",
+              "description": "City name, e.g. 北京 / Paris",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "city"
+          ]
+        },
+        "timeoutMs": 20000,
+        "patterns": [
+          "^(?:查询?|看看)?(?<city>[\\p{L}\\s]{1,30}?)(?:今天|现在|当前)?的?天气(?:怎么样|如何)?[?？]?$",
+          "^(?:what'?s the )?weather (?:in|for) (?<city>[\\p{L}\\s.-]+?)\\??$"
+        ],
+        "examples": [
+          "上海天气",
+          "weather in Paris"
+        ]
+      }
+    ],
+    "settings": {
+      "units": {
+        "type": "select",
+        "title": "温度单位",
+        "options": [
+          "celsius",
+          "fahrenheit"
+        ],
+        "default": "celsius"
+      },
+      "language": {
+        "type": "select",
+        "title": "地名语言",
+        "options": [
+          "zh",
+          "en"
+        ],
+        "default": "zh"
+      }
+    }
+  }
+}

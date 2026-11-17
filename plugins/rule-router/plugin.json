@@ -1,0 +1,19 @@
+{
+  "id": "rule-router",
+  "name": "规则路由（离线 Provider）",
+  "version": "1.0.0",
+  "description": "不需要任何模型或网络的离线「大脑」：用其他插件在清单中声明的 patterns 把自然语言路由到工具。演示：Provider 也是插件，Agent 的决策层可替换。",
+  "author": "Plugin Harness Team",
+  "apiVersion": 1,
+  "engines": { "harness": "^1.0.0" },
+  "main": "index.js",
+  "permissions": {},
+  "contributes": {
+    "providers": [
+      { "name": "rules", "label": "规则路由（离线）", "description": "零依赖、可预测，适合离线演示与调试插件" }
+    ],
+    "settings": {
+      "explain": { "type": "boolean", "title": "说明匹配到的规则", "default": true }
+    }
+  }
+}

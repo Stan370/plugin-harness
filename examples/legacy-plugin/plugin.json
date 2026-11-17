@@ -1,0 +1,13 @@
+{
+  "id": "legacy-plugin",
+  "name": "旧版插件（不兼容演示）",
+  "version": "0.3.0",
+  "description": "为宿主 0.x 编写的旧插件。用于演示版本不兼容时的提示：可以看到，但无法启用。",
+  "author": "Someone in 2024",
+  "apiVersion": 1,
+  "engines": { "harness": "^0.9.0" },
+  "main": "index.js",
+  "contributes": {
+    "tools": [{ "name": "hello", "description": "Say hello", "input": { "type": "object", "properties": {} } }]
+  }
+}

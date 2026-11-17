@@ -1,0 +1,29 @@
+{
+  "id": "{{id}}",
+  "name": "{{name}}",
+  "version": "0.1.0",
+  "description": "我的第一个 Plugin Harness 插件",
+  "author": "{{author}}",
+  "apiVersion": 1,
+  "engines": { "harness": "^1.0.0" },
+  "main": "index.js",
+  "permissions": {},
+  "contributes": {
+    "tools": [
+      {
+        "name": "greet",
+        "description": "Greet someone by name. Returns a friendly greeting.",
+        "input": {
+          "type": "object",
+          "properties": { "name": { "type": "string", "description": "Who to greet" } },
+          "required": ["name"]
+        },
+        "patterns": ["^(?:say hi to|向)\\s*(?<name>\\S+?)\\s*(?:问好)?$"],
+        "examples": ["向 Alice 问好"]
+      }
+    ],
+    "settings": {
+      "greeting": { "type": "string", "title": "问候语", "default": "你好" }
+    }
+  }
+}

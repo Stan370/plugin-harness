@@ -1,0 +1,66 @@
+{
+  "id": "workspace-notes",
+  "name": "工作区笔记",
+  "version": "1.1.0",
+  "description": "列出、搜索、读取和写入工作区里的 Markdown 笔记。演示：文件系统权限 + 工具 + 配置。",
+  "author": "Plugin Harness Team",
+  "apiVersion": 1,
+  "engines": { "harness": "^1.0.0" },
+  "main": "index.js",
+  "permissions": {
+    "fs.read": ["${workspace}"],
+    "fs.write": ["${workspace}/notes"]
+  },
+  "contributes": {
+    "tools": [
+      {
+        "name": "list",
+        "description": "List all notes in the workspace notes folder with size and last-modified time.",
+        "input": { "type": "object", "properties": {} },
+        "patterns": ["^(列出|查看|显示)?(所有|全部)?笔记(列表)?$", "^list( all)? notes$"],
+        "examples": ["列出笔记"]
+      },
+      {
+        "name": "search",
+        "description": "Full-text search across notes. Returns matching lines with file names and line numbers.",
+        "input": {
+          "type": "object",
+          "properties": { "query": { "type": "string", "description": "Text to search for (case-insensitive)", "minLength": 1 } },
+          "required": ["query"]
+        },
+        "patterns": ["^(?:搜索|查找|搜)笔记\\s*(?<query>.+)$", "^search notes (?:for )?(?<query>.+)$"],
+        "examples": ["搜索笔记 插件"]
+      },
+      {
+        "name": "read",
+        "description": "Read the full content of one note by file name (e.g. welcome.md).",
+        "input": {
+          "type": "object",
+          "properties": { "name": { "type": "string", "description": "Note file name, relative to the notes folder" } },
+          "required": ["name"]
+        },
+        "patterns": ["^(?:读取|打开|阅读|看)笔记\\s*(?<name>\\S+)$", "^read note (?<name>\\S+)$"],
+        "examples": ["读取笔记 welcome.md"]
+      },
+      {
+        "name": "write",
+        "description": "Create a note (or overwrite one, if the allowOverwrite setting is on). Use .md file names.",
+        "input": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string", "description": "File name, e.g. todo.md" },
+            "content": { "type": "string", "description": "Markdown content" }
+          },
+          "required": ["name", "content"]
+        },
+        "patterns": ["^(?:新建|写|创建|保存)笔记\\s*(?<name>[^\\s:：]+)\\s*[:：]\\s*(?<content>[\\s\\S]+)$"],
+        "examples": ["新建笔记 todo.md：明天把插件文档写完"]
+      }
+    ],
+    "settings": {
+      "notesDir": { "type": "string", "title": "笔记目录（相对工作区）", "default": "notes", "description": "只能在工作区内；写入权限仅覆盖 notes/，改到别处时写入会被沙箱拒绝" },
+      "maxResults": { "type": "number", "title": "搜索结果上限", "default": 20, "min": 1, "max": 200 },
+      "allowOverwrite": { "type": "boolean", "title": "允许覆盖已有笔记", "default": false }
+    }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "id": "slow-start",
+  "name": "Slow start (test fixture)",
+  "version": "1.0.0",
+  "apiVersion": 1,
+  "engines": { "harness": "^1.0.0" },
+  "main": "index.js",
+  "activationTimeoutMs": 500,
+  "contributes": { "tools": [{ "name": "noop", "description": "noop" }] }
+}

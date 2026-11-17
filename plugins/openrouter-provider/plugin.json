@@ -1,0 +1,24 @@
+{
+  "id": "openrouter-provider",
+  "name": "OpenRouter（多模型）",
+  "version": "1.0.0",
+  "description": "通过 OpenRouter（https://openrouter.ai/api/v1）接入数百个大模型作为 Agent 的大脑，支持自然语言多步工具调用。需要网络权限 openrouter.ai 与密钥 OPENROUTER_API_KEY —— 密钥只在用户授权后由宿主下发，插件进程环境变量中不存在任何密钥。",
+  "author": "Plugin Harness Team",
+  "apiVersion": 1,
+  "engines": { "harness": "^1.0.0" },
+  "main": "index.js",
+  "permissions": {
+    "network": ["openrouter.ai"],
+    "secrets": ["OPENROUTER_API_KEY"]
+  },
+  "contributes": {
+    "providers": [
+      { "name": "openrouter", "label": "OpenRouter", "description": "需要 OPENROUTER_API_KEY；模型可在插件配置中切换" }
+    ],
+    "settings": {
+      "model": { "type": "string", "title": "模型", "default": "google/gemini-3.8-flash", "description": "OpenRouter 模型 ID，须支持 tools，见 https://openrouter.ai/models" },
+      "maxTokens": { "type": "number", "title": "max_tokens", "default": 4096, "min": 256, "max": 64000 },
+      "temperature": { "type": "number", "title": "temperature", "default": 0.3, "min": 0, "max": 2 }
+    }
+  }
+}

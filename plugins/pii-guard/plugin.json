@@ -1,0 +1,25 @@
+{
+  "id": "pii-guard",
+  "name": "隐私守卫",
+  "version": "1.0.0",
+  "description": "在消息发给模型之前、工具结果回到模型之前，自动脱敏邮箱、手机号、身份证号和 API Key；可拦截把密钥写进文件的工具调用。演示：纯 hook 插件、零权限、failMode=closed。",
+  "author": "Plugin Harness Team",
+  "apiVersion": 1,
+  "engines": { "harness": "^1.0.0" },
+  "main": "index.js",
+  "permissions": {},
+  "contributes": {
+    "hooks": [
+      { "event": "chat.userMessage", "priority": 10, "failMode": "closed" },
+      { "event": "tool.beforeCall", "priority": 10, "failMode": "open" },
+      { "event": "tool.afterCall", "priority": 10, "failMode": "closed" }
+    ],
+    "settings": {
+      "redactEmail": { "type": "boolean", "title": "脱敏邮箱", "default": true },
+      "redactPhone": { "type": "boolean", "title": "脱敏手机号", "default": true },
+      "redactIdCard": { "type": "boolean", "title": "脱敏身份证号", "default": true },
+      "redactApiKeys": { "type": "boolean", "title": "脱敏 API Key / Token", "default": true },
+      "blockSecretWrites": { "type": "boolean", "title": "阻止把密钥写入文件的工具调用", "default": true }
+    }
+  }
+}

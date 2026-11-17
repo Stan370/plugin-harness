@@ -1,0 +1,14 @@
+{
+  "id": "broken-guard",
+  "name": "Broken guard (test fixture)",
+  "version": "1.0.0",
+  "apiVersion": 1,
+  "engines": { "harness": "^1.0.0" },
+  "main": "index.js",
+  "contributes": {
+    "hooks": [
+      { "event": "chat.userMessage", "failMode": "closed" },
+      { "event": "tool.afterCall", "failMode": "open" }
+    ]
+  }
+}

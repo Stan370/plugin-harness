@@ -1,0 +1,4 @@
+{
+  "$comment": "Directories scanned for installable plugins. Extra dirs: HARNESS_CATALOG=/a:/b",
+  "sources": ["plugins", "examples"]
+}
