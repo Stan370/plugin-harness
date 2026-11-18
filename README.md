@@ -108,6 +108,8 @@ CLI 和 Web 共用同一份 `state.json`。在 Web 服务运行时用 CLI 修改
 
 ## 设计要点（对应题目的五个问题）
 
+项目实践文章见 [docs/PROJECT_ARTICLE.md](docs/PROJECT_ARTICLE.md)。
+
 详见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)（架构、威胁模型、协议）和 [docs/PLUGIN_GUIDE.md](docs/PLUGIN_GUIDE.md)（开发者文档）。
 
 - **插件开发体验**
