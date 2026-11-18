@@ -9,6 +9,7 @@
 - 每个插件运行在独立的 Node 进程里，受 `--permission` 沙箱约束。
 - 权限需要用户逐项授予，可以随时撤销。
 - 插件崩溃、超时或不兼容时，宿主照常运行，并告诉用户发生了什么、怎么修复。
+[Watch the Demo](docs/screenshots/demo.mp4)
 
 ![对话](docs/screenshots/chat.png)
 
@@ -24,7 +25,7 @@
 - 不需要 `npm install`，没有任何第三方依赖。
 - 可选：
   - 网络，供 weather 插件访问 Open-Meteo（免密钥）；
-  - `OPENROUTER_API_KEY`，用于 OpenRouter Provider（`https://openrouter.ai/api/v1`）。**没有它也能完整体验**：默认使用离线的规则路由 Provider。
+  - 云模型密钥：`OPENROUTER_API_KEY`、`OPENAI_API_KEY`、`ANTHROPIC_API_KEY`、`GEMINI_API_KEY` 或 `DEEPSEEK_API_KEY`。**没有密钥也能完整体验**：默认使用离线的规则路由 Provider。
 
 ## 快速开始（3 条命令）
 
@@ -47,6 +48,27 @@ harness secrets set OPENROUTER_API_KEY            # 输入时不回显，保存�
 harness provider openrouter-provider/openrouter   # 或在对话页顶部切换 Provider
 harness config openrouter-provider model=<模型ID>  # 可选，默认 google/gemini-3.8-flash；须支持 tools
 ```
+
+也可以直接接入常用云模型（官方 API，不经过 OpenRouter）：
+
+```bash
+harness secrets set OPENAI_API_KEY
+harness secrets set ANTHROPIC_API_KEY
+harness secrets set GEMINI_API_KEY
+harness secrets set DEEPSEEK_API_KEY
+
+harness provider cloud-providers/openai
+harness provider cloud-providers/anthropic
+harness provider cloud-providers/gemini
+harness provider cloud-providers/deepseek
+
+harness config cloud-providers openaiModel=gpt-4o-mini
+harness config cloud-providers anthropicModel=claude-sonnet-4-20250514
+harness config cloud-providers geminiModel=gemini-2.5-flash
+harness config cloud-providers deepseekModel=deepseek-chat
+```
+
+密钥保存在本机 `0600` 文件中，只会下发给声明并获得相应 `secrets` 权限的插件。每个 Provider 只能访问对应官方主机，撤销密钥或网络权限会立即停止插件进程并按新权限重启。
 
 **1.  隔离、稳定性与权限**（安装混沌猴之后，在对话中输入）
 
@@ -75,7 +97,7 @@ harness call hello.greet name=Alice      # 另开终端调用
 **3. 自动化测试**
 
 ```bash
-npm test     # 36 个用例，约 10 秒；覆盖协议、权限、沙箱、超时、崩溃熔断、OOM、hook、更新审批、Web 安全
+npm test     # 37 个用例，约 10 秒；覆盖协议、权限、沙箱、超时、崩溃熔断、OOM、hook、更新审批、Web 安全
 ```
 
 ## CLI 速查
@@ -101,6 +123,7 @@ CLI 和 Web 共用同一份 `state.json`。在 Web 服务运行时用 CLI 修改
 | **pii-guard** 隐私守卫 | 3 个 hook | **无** | 插件可以横切地改写或拦截宿主的数据流；`failMode: closed` |
 | **rule-router** 规则路由 | Provider | 无 | Agent 的决策层可以替换；离线、确定性 |
 | **openrouter-provider** OpenRouter | Provider | `openrouter.ai` + `OPENROUTER_API_KEY` | 真实 LLM（OpenAI 兼容接口、可换任意模型）通过同一协议接入；密钥只能经授权下发 |
+| **cloud-providers** 常用云模型 | Provider | 官方 API 主机 + `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `GEMINI_API_KEY` / `DEEPSEEK_API_KEY` | 直接接入 OpenAI、Anthropic、Google Gemini 和 DeepSeek，每个密钥独立授权 |
 | examples/**chaos-monkey** | 8 个故障工具 | 无 | 隔离与稳定性 |
 | examples/**legacy-plugin** | 1 个工具 | 无 | 版本不兼容时的处理 |
 
@@ -138,7 +161,7 @@ CLI 和 Web 共用同一份 `state.json`。在 Web 服务运行时用 CLI 修改
 
 ## 实际验证结果
 
-- `npm test`：**36/36 通过**（Node 24.10.0，macOS）。
+- `npm test`：**37/37 通过**（Node 24.10.0，macOS）。
 - 手动验证（CLI 与 headless Chrome，截图在 `docs/screenshots/`）：
   - 上面「验收步骤」1–4 的全部操作；
   - weather 真实联网查询北京、上海、东京；
