@@ -1,3 +1,6 @@
+https://github.com/user-attachments/assets/d264c0ac-7617-43f8-b92a-537b7648630b
+
+
 # Plugin Harness
 
 **一个在本地运行、靠插件扩展的 AI Agent Harness。** 形态是 CLI 加本地 Web 应用，零 npm 依赖。
@@ -9,9 +12,8 @@
 - 每个插件运行在独立的 Node 进程里，受 `--permission` 沙箱约束。
 - 权限需要用户逐项授予，可以随时撤销。
 - 插件崩溃、超时或不兼容时，宿主照常运行，并告诉用户发生了什么、怎么修复。
-  [Watch the Demo
-](https://github.com/user-attachments/assets/d264c0ac-7617-43f8-b92a-537b7648630b
-)
+
+
 ![对话](docs/screenshots/chat.png)
 
 | 插件管理 | 更新时申请新权限 | 故障与熔断 |
