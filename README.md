@@ -9,8 +9,9 @@
 - 每个插件运行在独立的 Node 进程里，受 `--permission` 沙箱约束。
 - 权限需要用户逐项授予，可以随时撤销。
 - 插件崩溃、超时或不兼容时，宿主照常运行，并告诉用户发生了什么、怎么修复。
-[Watch the Demo](docs/screenshots/demo.mp4)
-
+  [Watch the Demo
+](https://github.com/user-attachments/assets/d264c0ac-7617-43f8-b92a-537b7648630b
+)
 ![对话](docs/screenshots/chat.png)
 
 | 插件管理 | 更新时申请新权限 | 故障与熔断 |
@@ -39,6 +40,7 @@ node bin/harness.js start        # 启动后，终端会打印带访问令牌的
 - 想把 `harness` 当作全局命令使用，执行 `npm link`。下文中的 `harness` 等价于 `node bin/harness.js`。
 - 数据默认保存在 `./.harness-data/`，可以用 `HARNESS_HOME=/some/dir` 换到别处。删除这个目录就能完全重置。
 - 端口被占用时：`harness start --port 7788`。
+- 多对话会保存在 `./.harness-data/sessions/`；切换会话只加载该线程的持久化上下文，新对话会立即创建并持久化。
 
 可选：启用 OpenRouter 上的大模型。
 
@@ -97,7 +99,7 @@ harness call hello.greet name=Alice      # 另开终端调用
 **3. 自动化测试**
 
 ```bash
-npm test     # 37 个用例，约 10 秒；覆盖协议、权限、沙箱、超时、崩溃熔断、OOM、hook、更新审批、Web 安全
+npm test     # 38 个用例，约 10 秒；覆盖协议、权限、沙箱、超时、崩溃熔断、OOM、hook、会话、更新审批、Web 安全
 ```
 
 ## CLI 速查
@@ -161,7 +163,7 @@ CLI 和 Web 共用同一份 `state.json`。在 Web 服务运行时用 CLI 修改
 
 ## 实际验证结果
 
-- `npm test`：**37/37 通过**（Node 24.10.0，macOS）。
+- `npm test`：**38/38 通过**（Node 24.10.0，macOS）。
 - 手动验证（CLI 与 headless Chrome，截图在 `docs/screenshots/`）：
   - 上面「验收步骤」1–4 的全部操作；
   - weather 真实联网查询北京、上海、东京；
