@@ -131,6 +131,8 @@ const S = {
   logFilter: { pluginId: '', level: '' },
   sessionId: localStorage.getItem('harness-session') || null,
   transcript: [],
+  sessions: [],
+  sessionLoading: false,
   busy: false,
   drawer: null, // { id, tab }
   updates: {},
@@ -153,6 +155,108 @@ function scheduleRefresh() {
     if (S.page === 'chat') renderChatHeader();
     if (S.drawer) renderDrawer();
   }, 150);
+}
+
+async function refreshSessions() {
+  try {
+    S.sessions = await api('/api/sessions');
+  } catch (e) {
+    S.sessions = [];
+  }
+  renderSessionList();
+}
+
+function renderSessionList() {
+  const list = $('#session-list');
+  if (!list) return;
+  clear(list);
+  for (const s of S.sessions) {
+    const item = h(
+      'div',
+      { class: `session-item${s.id === S.sessionId ? ' active' : ''}` },
+    );
+    const title = h('button', {
+      class: 'session-title',
+      title: s.title,
+      onclick: () => switchSession(s.id),
+    }, s.title);
+    const meta = h('button', {
+      class: 'session-menu',
+      title: '重命名或删除会话',
+      onclick: () => showSessionMenu(s),
+    }, '•••');
+    item.append(title, meta);
+    list.append(item);
+  }
+  if (!S.sessions.length) list.append(h('div', { class: 'session-empty' }, '暂无会话'));
+}
+
+async function createSession(title = '') {
+  if (S.busy) return;
+  const s = await act(api('/api/sessions', { method: 'POST', body: { title } }), '');
+  S.sessionId = s.id;
+  S.transcript = [];
+  localStorage.setItem('harness-session', s.id);
+  await refreshSessions();
+  renderTranscript();
+  renderChatHeader();
+  setTimeout(() => chatEls.ta && chatEls.ta.focus(), 0);
+  return s;
+}
+
+async function switchSession(id) {
+  if (S.busy || S.sessionLoading || id === S.sessionId) return;
+  S.sessionLoading = true;
+  S.sessionId = id;
+  S.transcript = [];
+  localStorage.setItem('harness-session', id);
+  renderTranscript();
+  renderSessionList();
+  renderChatHeader();
+  try {
+    const s = await api(`/api/sessions/${id}`);
+    if (S.sessionId !== id) return;
+    S.transcript = s.transcript;
+    renderTranscript();
+    renderChatHeader();
+  } catch (e) {
+    toast(e.message, { error: true });
+  } finally {
+    S.sessionLoading = false;
+  }
+}
+
+function showSessionMenu(s) {
+  showModal((close) => {
+    const title = h('input', { class: 'text', value: s.title, style: 'width:100%' });
+    return h(
+      'div',
+      {},
+      h('div', { class: 'modal-head' }, h('h2', {}, '会话'), h('button', { class: 'btn ghost', onclick: close }, '关闭')),
+      h('label', { class: 'form', style: 'display:block' }, h('span', {}, '标题'), title),
+      h('div', { class: 'row', style: 'justify-content:flex-end;margin-top:16px' }, h('button', {
+        class: 'btn danger',
+        onclick: async () => {
+          await act(api(`/api/sessions/${s.id}`, { method: 'DELETE' }), '会话已删除');
+          close();
+          if (S.sessionId === s.id) {
+            S.sessionId = null;
+            S.transcript = [];
+            localStorage.removeItem('harness-session');
+            renderTranscript();
+          }
+          await refreshSessions();
+        },
+      }, '删除'), h('button', {
+        class: 'btn primary',
+        onclick: async () => {
+          await act(api(`/api/sessions/${s.id}`, { method: 'PATCH', body: { title: title.value } }), '标题已更新');
+          close();
+          await refreshSessions();
+        },
+      }, '保存')),
+    );
+  });
 }
 
 // ------------------------------------------------------------------ router
@@ -205,7 +309,8 @@ function pageChat() {
 
   async function send(text) {
     const t = (text ?? ta.value).trim();
-    if (!t || S.busy) return;
+    if (!t || S.busy || S.sessionLoading) return;
+    if (!S.sessionId) await createSession();
     ta.value = '';
     ta.style.height = 'auto';
     await runChat(t);
@@ -223,6 +328,16 @@ function renderChatHeader() {
   const head = clear(chatEls.head);
   const providers = S.state.providers;
   const active = S.state.info.settings.activeProvider;
+  const sessionSel = h(
+    'select',
+    {
+      title: '切换会话',
+      onchange: (e) => e.target.value && switchSession(e.target.value),
+    },
+    h('option', { value: '' }, '选择会话'),
+    S.sessions.map((s) => h('option', { value: s.id, selected: s.id === S.sessionId }, s.title)),
+  );
+  sessionSel.className = 'session-select';
   const sel = h(
     'select',
     {
@@ -240,24 +355,13 @@ function renderChatHeader() {
   head.append(
     ...[
     h('h1', {}, '对话'),
+    sessionSel,
     h('span', { class: 'muted small' }, 'Provider'),
     sel,
     ap && ap.state !== 'running' ? h('span', { class: 'badge red' }, 'Provider 不可用') : null,
     h('span', { class: 'spacer' }),
+    h('button', { class: 'btn small', onclick: () => createSession() }, '＋ 新对话'),
     h('span', { class: 'faint small' }, `${S.state.tools.filter((t) => t.available).length} 个可用工具`),
-    h(
-      'button',
-      {
-        class: 'btn small',
-        onclick: () => {
-          S.sessionId = null;
-          S.transcript = [];
-          localStorage.removeItem('harness-session');
-          renderTranscript();
-        },
-      },
-      '新对话',
-    ),
     ].filter(Boolean),
   );
   // suggestions from tool examples — contributed by plugins, not hard-coded
@@ -271,15 +375,63 @@ function renderChatHeader() {
 function renderTranscript() {
   const inner = clear(chatEls.inner);
   if (!S.transcript.length) {
-    inner.append(
-      h(
-        'div',
-        { class: 'empty' },
-        h('h2', {}, '你好 👋'),
-        h('p', {}, '这里的每一项能力都来自插件：工具、隐私 hook，甚至负责思考的 Provider。'),
-        h('p', { class: 'small' }, '点击下方的示例，或到「已安装」页启用 / 禁用插件，看看对话能力如何随之变化。'),
-      ),
-    );
+    const active = S.state && S.state.info.settings.activeProvider;
+    const activeProvider = S.state && S.state.providers.find((p) => p.ref === active);
+    const needsOnboarding = !active || activeProvider?.state !== 'running';
+    const empty = h('div', { class: 'empty chat-onboarding' });
+    empty.append(h('h2', {}, '你好 👋'), h('p', {}, '选择一个 Agent 的大脑。所有工具和 Hook 仍由已安装插件提供。'));
+    if (needsOnboarding) {
+      const cards = h('div', { class: 'provider-choice-grid' });
+      const offline = S.state?.providers.find((p) => p.ref === 'rule-router/rules');
+      cards.append(
+        h('div', { class: 'provider-choice' },
+          h('div', { class: 'provider-choice-title' }, '离线规则路由器'),
+          h('p', { class: 'small muted' }, '不调用大模型，不需要 API Key。适合确定性测试、笔记和天气演示。'),
+          h('button', {
+            class: 'btn primary',
+            disabled: !offline || offline.state !== 'running',
+            onclick: async () => {
+              await act(api('/api/settings', { method: 'POST', body: { activeProvider: 'rule-router/rules' } }), '已切换到离线规则路由器');
+              await refresh();
+              renderChatHeader();
+              renderTranscript();
+            },
+          }, '使用离线模式'),
+        ),
+        h('div', { class: 'provider-choice' },
+          h('div', { class: 'provider-choice-title' }, '配置云模型'),
+          h('p', { class: 'small muted' }, '支持 OpenRouter、OpenAI、Anthropic、Gemini 和 DeepSeek。密钥只会下发给已授权插件。'),
+          h('button', { class: 'btn', onclick: () => { location.hash = 'settings'; } }, '前往配置 API Key'),
+        ),
+      );
+      empty.append(cards);
+    } else {
+      empty.append(h('p', { class: 'small' }, '点击下方的示例，或到「已安装」页启用 / 禁用插件，看看对话能力如何随之变化。'));
+      if (active && active !== 'rule-router/rules') {
+        const keyByProvider = {
+          'openrouter-provider/openrouter': 'OPENROUTER_API_KEY',
+          'cloud-providers/openai': 'OPENAI_API_KEY',
+          'cloud-providers/anthropic': 'ANTHROPIC_API_KEY',
+          'cloud-providers/gemini': 'GEMINI_API_KEY',
+          'cloud-providers/deepseek': 'DEEPSEEK_API_KEY',
+        };
+        const keyName = keyByProvider[active];
+        if (keyName) {
+          api('/api/secrets').then((list) => {
+            const key = list.find((s) => s.name === keyName);
+            if (key && !key.stored && !key.fromEnv) {
+              clear(empty);
+              empty.append(
+                h('h2', {}, '需要配置 API Key'),
+                h('p', {}, `当前 Provider 需要 ${keyName}。密钥配置完成后即可继续对话。`),
+                h('button', { class: 'btn primary', onclick: () => { location.hash = 'settings'; } }, '前往设置'),
+              );
+            }
+          }).catch(() => {});
+        }
+      }
+    }
+    inner.append(empty);
     return;
   }
   for (const ev of S.transcript) appendEvent(ev, false);
@@ -354,6 +506,7 @@ function renderResult(ev) {
 async function runChat(text) {
   S.busy = true;
   chatEls.sendBtn.disabled = true;
+  const requestSessionId = S.sessionId;
   const thinking = h('div', { class: 'note' }, h('span', { class: 'spinner' }), '思考中…');
   const showThinking = () => {
     chatEls.inner.append(thinking);
@@ -363,7 +516,7 @@ async function runChat(text) {
     const res = await fetch('/api/chat', {
       method: 'POST',
       headers: { authorization: `Bearer ${TOKEN}`, 'content-type': 'application/json' },
-      body: JSON.stringify({ sessionId: S.sessionId, text }),
+      body: JSON.stringify({ sessionId: requestSessionId, text }),
     });
     if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `HTTP ${res.status}`);
     const reader = res.body.getReader();
@@ -380,8 +533,13 @@ async function runChat(text) {
         if (!line) continue;
         const ev = JSON.parse(line);
         if (ev.type === 'session') {
-          S.sessionId = ev.sessionId;
-          localStorage.setItem('harness-session', ev.sessionId);
+          if (!S.sessionId) {
+            S.sessionId = ev.sessionId;
+            localStorage.setItem('harness-session', ev.sessionId);
+          }
+          continue;
+        }
+        if (ev.sessionId && ev.sessionId !== requestSessionId) {
           continue;
         }
         thinking.remove();
@@ -402,6 +560,7 @@ async function runChat(text) {
     thinking.remove();
     S.busy = false;
     chatEls.sendBtn.disabled = false;
+    await refreshSessions();
     chatEls.ta.focus();
   }
 }
@@ -926,6 +1085,10 @@ function connectEvents() {
 // ================================================================== boot
 (async function boot() {
   for (const a of document.querySelectorAll('#nav a')) a.addEventListener('click', () => (location.hash = a.dataset.page));
+  $('#session-new').addEventListener('click', async () => {
+    location.hash = 'chat';
+    await createSession();
+  });
   if (!TOKEN) return render();
   try {
     await refresh();
@@ -933,11 +1096,24 @@ function connectEvents() {
     clear($('#main')).append(h('div', { class: 'page' }, h('div', { class: 'empty' }, h('h2', {}, '无法连接宿主'), h('p', {}, e.message))));
     return;
   }
+  await refreshSessions();
   if (S.sessionId) {
     try {
       const s = await api(`/api/sessions/${S.sessionId}`);
       S.sessionId = s.id;
       S.transcript = s.transcript;
+    } catch {
+      S.sessionId = null;
+      S.transcript = [];
+      localStorage.removeItem('harness-session');
+    }
+  }
+  if (!S.sessionId && S.sessions.length) {
+    try {
+      const s = await api(`/api/sessions/${S.sessions[0].id}`);
+      S.sessionId = s.id;
+      S.transcript = s.transcript;
+      localStorage.setItem('harness-session', s.id);
     } catch {}
   }
   connectEvents();

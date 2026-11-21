@@ -486,27 +486,37 @@ commands.chat = async () => {
 commands.setup = async ({ flags }) => {
   const store = new Store();
   const reg = new Registry(store);
-  const recommended = ['workspace-notes', 'weather@1.0.0', 'pii-guard', 'rule-router', 'openrouter-provider'];
+  const recommended = ['workspace-notes', 'weather@1.0.0', 'pii-guard', 'rule-router', 'openrouter-provider', 'cloud-providers'];
   const installed = new Set(reg.list().map((p) => p.id));
   const todo = recommended.filter((s) => !installed.has(s.split('@')[0]));
-  if (!todo.length) return console.log('推荐插件都已安装。运行 `harness start` 打开 Web 界面。');
-  console.log(bold('将安装以下推荐插件：'));
-  const infos = todo.map((s) => inspect(s));
-  for (const i of infos) {
-    console.log(`\n${bold(i.manifest.id)}@${i.manifest.version} — ${i.manifest.name}`);
-    printPermissions(i.permissions);
+  if (todo.length) {
+    console.log(bold('将安装以下推荐插件：'));
+    const infos = todo.map((s) => inspect(s));
+    for (const i of infos) {
+      console.log(`\n${bold(i.manifest.id)}@${i.manifest.version} — ${i.manifest.name}`);
+      printPermissions(i.permissions);
+    }
+    if (!flags.yes) {
+      if (!process.stdin.isTTY) throw new UserError('非交互环境下需要 -y 明确同意授予以上权限');
+      if (!/^y/i.test(await ask('\n安装并授予以上权限？[y/N] '))) return console.log('已取消');
+    }
+    for (const s of todo) {
+      const r = reg.install(s, { grants: 'all' });
+      console.log(green(`✓ ${r.record.id}@${r.record.version}`));
+    }
+  } else {
+    console.log(dim('推荐插件都已安装，将检查可用的云模型密钥。'));
   }
-  if (!flags.yes) {
-    if (!process.stdin.isTTY) throw new UserError('非交互环境下需要 -y 明确同意授予以上权限');
-    if (!/^y/i.test(await ask('\n安装并授予以上权限？[y/N] '))) return console.log('已取消');
-  }
-  for (const s of todo) {
-    const r = reg.install(s, { grants: 'all' });
-    console.log(green(`✓ ${r.record.id}@${r.record.version}`));
-  }
-  const hasKey = Boolean(store.getSecret('OPENROUTER_API_KEY'));
-  reg.setSetting('activeProvider', hasKey ? 'openrouter-provider/openrouter' : 'rule-router/rules');
-  console.log(`\nAgent Provider：${bold(hasKey ? 'OpenRouter（检测到 OPENROUTER_API_KEY）' : '规则路由（离线）')}${hasKey ? '' : dim('  — 设置密钥后可切换：harness secrets set OPENROUTER_API_KEY && harness provider openrouter-provider/openrouter')}`);
+  const providerKeys = [
+    ['OPENROUTER_API_KEY', 'openrouter-provider/openrouter', 'OpenRouter'],
+    ['OPENAI_API_KEY', 'cloud-providers/openai', 'OpenAI'],
+    ['ANTHROPIC_API_KEY', 'cloud-providers/anthropic', 'Anthropic'],
+    ['GEMINI_API_KEY', 'cloud-providers/gemini', 'Google Gemini'],
+    ['DEEPSEEK_API_KEY', 'cloud-providers/deepseek', 'DeepSeek'],
+  ];
+  const detected = providerKeys.find(([name]) => Boolean(store.getSecret(name)));
+  reg.setSetting('activeProvider', detected ? detected[1] : 'rule-router/rules');
+  console.log(`\nAgent Provider：${bold(detected ? `${detected[2]}（检测到 ${detected[0]}）` : '规则路由（离线）')}${detected ? '' : dim('  — 设置任一云模型密钥后可切换：harness provider')}`);
   console.log(`\n下一步：${cyan('harness start')}  打开 Web 界面`);
   notifyServer(store);
 };
@@ -652,8 +662,11 @@ commands.doctor = async () => {
   ok(true, `工作区 ${store.paths.workspace}`);
   const reg = new Registry(store);
   for (const p of reg.list()) ok(p.manifestOk && p.compat.compatible, `插件 ${p.id}@${p.version}`, p.manifestErrors.join('; ') || p.compat.reason);
-  const hasKey = Boolean(store.getSecret('OPENROUTER_API_KEY'));
-  console.log(`${hasKey ? green('✓') : dim('○')} OPENROUTER_API_KEY ${dim(hasKey ? '已配置' : '未配置（可选，仅 OpenRouter Provider 需要：harness secrets set OPENROUTER_API_KEY）')}`);
+  const providerKeys = ['OPENROUTER_API_KEY', 'OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'GEMINI_API_KEY', 'DEEPSEEK_API_KEY'];
+  for (const name of providerKeys) {
+    const hasKey = Boolean(store.getSecret(name));
+    console.log(`${hasKey ? green('✓') : dim('○')} ${name} ${dim(hasKey ? '已配置' : '未配置（可选）')}`);
+  }
 };
 
 // --------------------------------------------------------------------- main

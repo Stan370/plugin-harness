@@ -1,0 +1,30 @@
+{
+  "id": "cloud-providers",
+  "name": "常用云模型",
+  "version": "1.0.0",
+  "description": "通过官方 API 接入 OpenAI、Anthropic、Google Gemini 和 DeepSeek。密钥由宿主按插件授权下发，插件进程环境变量中不存在密钥。",
+  "author": "Plugin Harness Team",
+  "apiVersion": 1,
+  "engines": { "harness": "^1.0.0" },
+  "main": "index.js",
+  "permissions": {
+    "network": ["api.openai.com", "api.anthropic.com", "generativelanguage.googleapis.com", "api.deepseek.com"],
+    "secrets": ["OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY", "DEEPSEEK_API_KEY"]
+  },
+  "contributes": {
+    "providers": [
+      { "name": "openai", "label": "OpenAI", "description": "需要 OPENAI_API_KEY" },
+      { "name": "anthropic", "label": "Anthropic", "description": "需要 ANTHROPIC_API_KEY" },
+      { "name": "gemini", "label": "Google Gemini", "description": "需要 GEMINI_API_KEY" },
+      { "name": "deepseek", "label": "DeepSeek", "description": "需要 DEEPSEEK_API_KEY" }
+    ],
+    "settings": {
+      "openaiModel": { "type": "string", "title": "OpenAI 模型", "default": "gpt-4o-mini" },
+      "anthropicModel": { "type": "string", "title": "Anthropic 模型", "default": "claude-sonnet-4-20250514" },
+      "geminiModel": { "type": "string", "title": "Gemini 模型", "default": "gemini-2.5-flash" },
+      "deepseekModel": { "type": "string", "title": "DeepSeek 模型", "default": "deepseek-chat" },
+      "maxTokens": { "type": "number", "title": "最大输出 token", "default": 4096, "min": 256, "max": 64000 },
+      "temperature": { "type": "number", "title": "temperature", "default": 0.3, "min": 0, "max": 2 }
+    }
+  }
+}

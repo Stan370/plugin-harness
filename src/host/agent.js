@@ -26,18 +26,88 @@ class Agent {
     this.sessions = new Map();
   }
 
+  createSession({ title = '' } = {}) {
+    const now = Date.now();
+    const s = {
+      id: crypto.randomUUID(),
+      title,
+      createdAt: now,
+      updatedAt: now,
+      provider: null,
+      model: null,
+      systemPrompt: SYSTEM_PROMPT,
+      parameters: {},
+      messages: [],
+      transcript: [],
+    };
+    this.sessions.set(s.id, s);
+    this.cacheSession(s);
+    this.save(s);
+    return s;
+  }
+
+  cacheSession(s) {
+    this.sessions.delete(s.id);
+    this.sessions.set(s.id, s);
+    while (this.sessions.size > 20) {
+      const oldest = this.sessions.keys().next().value;
+      this.sessions.delete(oldest);
+    }
+  }
+
   session(id) {
-    if (id && this.sessions.has(id)) return this.sessions.get(id);
+    if (id && this.sessions.has(id)) {
+      const hit = this.sessions.get(id);
+      this.cacheSession(hit);
+      return hit;
+    }
     if (id && /^[a-z0-9-]{8,64}$/.test(id)) {
       try {
         const s = JSON.parse(fs.readFileSync(path.join(this.dir, `${id}.json`), 'utf8'));
-        this.sessions.set(id, s);
+        s.messages = Array.isArray(s.messages) ? s.messages : [];
+        s.transcript = Array.isArray(s.transcript) ? s.transcript : [];
+        s.createdAt = s.createdAt || s.updatedAt || Date.now();
+        s.updatedAt = s.updatedAt || s.createdAt;
+        s.title = s.title || this.sessionTitle(s);
+        s.systemPrompt = s.systemPrompt || SYSTEM_PROMPT;
+        s.parameters = s.parameters || {};
+        this.cacheSession(s);
         return s;
       } catch {}
     }
-    const s = { id: crypto.randomUUID(), createdAt: Date.now(), messages: [], transcript: [] };
-    this.sessions.set(s.id, s);
+    return this.createSession();
+  }
+
+  getSession(id) {
+    if (!id) throw new Error('会话 ID 不能为空');
+    const file = path.join(this.dir, `${id}.json`);
+    if (!fs.existsSync(file)) {
+      const e = new Error(`找不到会话 ${id}`);
+      e.code = 'SESSION_NOT_FOUND';
+      throw e;
+    }
+    return this.session(id);
+  }
+
+  deleteSession(id) {
+    const file = path.join(this.dir, `${id}.json`);
+    if (!fs.existsSync(file)) return false;
+    fs.unlinkSync(file);
+    this.sessions.delete(id);
+    return true;
+  }
+
+  renameSession(id, title) {
+    const s = this.getSession(id);
+    s.title = String(title || '').trim().slice(0, 80);
+    if (!s.title) s.title = this.sessionTitle(s);
+    this.save(s);
     return s;
+  }
+
+  sessionTitle(s) {
+    const first = (s.transcript || []).find((t) => t.type === 'user');
+    return first ? String(first.text || '').trim().slice(0, 40) : '新对话';
   }
 
   listSessions() {
@@ -46,11 +116,26 @@ class Agent {
         .readdirSync(this.dir)
         .filter((f) => f.endsWith('.json'))
         .map((f) => {
-          const s = JSON.parse(fs.readFileSync(path.join(this.dir, f), 'utf8'));
-          const first = s.transcript.find((t) => t.type === 'user');
-          return { id: s.id, createdAt: s.createdAt, title: first ? first.text.slice(0, 40) : '（空会话）', turns: s.transcript.filter((t) => t.type === 'user').length };
+          try {
+            const s = JSON.parse(fs.readFileSync(path.join(this.dir, f), 'utf8'));
+            const transcript = Array.isArray(s.transcript) ? s.transcript : [];
+            const first = transcript.find((t) => t.type === 'user');
+            const turns = transcript.filter((t) => t.type === 'user').length;
+            return {
+              id: s.id,
+              title: s.title || (first ? String(first.text).slice(0, 40) : '新对话'),
+              createdAt: s.createdAt || s.updatedAt || 0,
+              updatedAt: s.updatedAt || s.createdAt || 0,
+              provider: s.provider || null,
+              model: s.model || null,
+              turns,
+            };
+          } catch {
+            return null;
+          }
         })
-        .sort((a, b) => b.createdAt - a.createdAt)
+        .filter(Boolean)
+        .sort((a, b) => b.updatedAt - a.updatedAt)
         .slice(0, 50);
     } catch {
       return [];
@@ -58,6 +143,9 @@ class Agent {
   }
 
   save(s) {
+    s.updatedAt = Date.now();
+    if (!s.title || s.title === '新对话') s.title = this.sessionTitle(s);
+    s.provider = s.provider || this.host.store.load().settings.activeProvider || null;
     try {
       fs.writeFileSync(path.join(this.dir, `${s.id}.json`), JSON.stringify(s));
     } catch {}
@@ -69,6 +157,7 @@ class Agent {
    */
   async run(sessionId, text, emit = () => {}) {
     const s = this.session(sessionId);
+    s.provider = this.host.store.load().settings.activeProvider || s.provider || null;
     const push = (ev) => {
       const e = { ts: Date.now(), ...ev };
       if (!['thinking', 'done'].includes(e.type)) s.transcript.push(e);

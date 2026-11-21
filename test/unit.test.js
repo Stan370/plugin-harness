@@ -5,7 +5,8 @@ freshHome('unit');
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const semver = require('../src/core/semver');
-const { validateManifest, checkCompatibility, validateConfig } = require('../src/core/manifest');
+const path = require('node:path');
+const { validateManifest, checkCompatibility, validateConfig, readManifest } = require('../src/core/manifest');
 const { hostMatches, requestedPermissions, PERMISSION_KINDS } = require('../src/core/permissions');
 const { validate } = require('../src/core/schema');
 const { parseArgs } = require('../src/host/agent');
@@ -37,6 +38,17 @@ test('valid manifest passes', () => {
   const r = validateManifest(base());
   assert.deepEqual(r.errors, []);
   assert.ok(r.ok);
+});
+
+test('common cloud provider manifest is valid', () => {
+  const r = readManifest(path.join(__dirname, '..', 'plugins', 'cloud-providers'));
+  assert.deepEqual(r.errors, []);
+  assert.ok(r.ok);
+  assert.deepEqual(r.manifest.contributes.providers.map((p) => p.name), ['openai', 'anthropic', 'gemini', 'deepseek']);
+  assert.ok(r.manifest.permissions.secrets.includes('OPENAI_API_KEY'));
+  assert.ok(r.manifest.permissions.secrets.includes('ANTHROPIC_API_KEY'));
+  assert.ok(r.manifest.permissions.secrets.includes('GEMINI_API_KEY'));
+  assert.ok(r.manifest.permissions.secrets.includes('DEEPSEEK_API_KEY'));
 });
 
 test('manifest validation catches common mistakes with readable errors', () => {

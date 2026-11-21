@@ -136,15 +136,29 @@ function createServer(host, { port = 7777, token = crypto.randomBytes(24).toStri
       return send(res, 200, fullState());
     }
     if (m === 'GET' && p === '/api/sessions') return send(res, 200, agent.listSessions());
+    if (m === 'POST' && p === '/api/sessions') {
+      const b = await readBody(req);
+      const s = agent.createSession({ title: String(b.title || '').trim() });
+      return send(res, 201, { id: s.id, title: s.title, createdAt: s.createdAt, updatedAt: s.updatedAt, provider: s.provider, transcript: s.transcript });
+    }
     mm = /^\/api\/sessions\/([a-z0-9-]+)$/.exec(p);
     if (m === 'GET' && mm) {
-      const s = agent.session(mm[1]);
+      const s = agent.getSession(mm[1]);
       return send(res, 200, { id: s.id, transcript: s.transcript });
+    }
+    if (m === 'PATCH' && mm) {
+      const b = await readBody(req);
+      const s = agent.renameSession(mm[1], b.title);
+      return send(res, 200, { id: s.id, title: s.title, updatedAt: s.updatedAt });
+    }
+    if (m === 'DELETE' && mm) {
+      const deleted = agent.deleteSession(mm[1]);
+      return send(res, 200, { ok: deleted });
     }
     if (m === 'POST' && p === '/api/chat') {
       const b = await readBody(req);
       res.writeHead(200, { 'content-type': 'application/x-ndjson; charset=utf-8', 'cache-control': 'no-store' });
-      const s = agent.session(b.sessionId);
+      const s = b.sessionId ? agent.getSession(String(b.sessionId)) : agent.createSession();
       res.write(JSON.stringify({ type: 'session', sessionId: s.id }) + '\n');
       await agent.run(s.id, String(b.text || ''), (ev) => res.write(JSON.stringify(ev) + '\n'));
       return res.end();
@@ -214,7 +228,7 @@ function createServer(host, { port = 7777, token = crypto.randomBytes(24).toStri
       try {
         await api(req, res, url);
       } catch (e) {
-        const status = e instanceof UserError ? 400 : 500;
+        const status = e instanceof UserError ? 400 : e.code === 'SESSION_NOT_FOUND' ? 404 : 500;
         if (status === 500) host.hostLog('error', `API ${req.method} ${url.pathname} 出错：${e.stack || e.message}`);
         if (!res.headersSent) send(res, status, { error: e.message, details: e.details });
         else res.end();

@@ -102,6 +102,27 @@ test('agent turn via the offline provider plugin', async () => {
   assert.ok(s2.messages.some((m) => m.role === 'user' && m.content.includes('[已脱敏:邮箱]')));
 });
 
+test('sessions are persisted and isolated', async () => {
+  host.setActiveProvider('rule-router/rules');
+  const agent = new Agent(host);
+  const first = agent.createSession();
+  const second = agent.createSession();
+  await agent.run(first.id, '搜索笔记 插件');
+  await agent.run(second.id, '列出笔记');
+
+  const loadedFirst = agent.getSession(first.id);
+  const loadedSecond = agent.getSession(second.id);
+  assert.notEqual(loadedFirst.id, loadedSecond.id);
+  assert.ok(loadedFirst.messages.some((m) => m.role === 'user' && m.content.includes('搜索笔记')));
+  assert.ok(!loadedSecond.messages.some((m) => m.role === 'user' && m.content.includes('搜索笔记')));
+  assert.match(agent.listSessions().find((s) => s.id === second.id).title, /列出笔记|新对话/);
+
+  const renamed = agent.renameSession(first.id, '笔记检索');
+  assert.equal(renamed.title, '笔记检索');
+  assert.equal(agent.deleteSession(first.id), true);
+  assert.ok(!agent.listSessions().some((s) => s.id === first.id));
+});
+
 test('timeout: a hanging tool times out and the plugin keeps serving', async () => {
   const t0 = Date.now();
   const r = await host.invokeTool('chaos-monkey.hang', {});

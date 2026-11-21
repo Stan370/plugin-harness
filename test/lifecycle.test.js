@@ -89,6 +89,30 @@ test('server: token, host header and origin checks', async () => {
     assert.equal(xo.status, 403);
     const secrets = await (await fetch(`${base}/api/secrets`, { headers: { authorization: `Bearer ${'a'.repeat(48)}` } })).json();
     assert.ok(!JSON.stringify(secrets).includes('abc'), 'secret values must never be returned');
+    const created = await fetch(`${base}/api/sessions`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${'a'.repeat(48)}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ title: '测试会话' }),
+    });
+    assert.equal(created.status, 201);
+    const session = await created.json();
+    assert.equal(session.title, '测试会话');
+    const loaded = await fetch(`${base}/api/sessions/${session.id}`, { headers: { authorization: `Bearer ${'a'.repeat(48)}` } });
+    assert.equal(loaded.status, 200);
+    assert.deepEqual((await loaded.json()).transcript, []);
+    const renamed = await fetch(`${base}/api/sessions/${session.id}`, {
+      method: 'PATCH',
+      headers: { authorization: `Bearer ${'a'.repeat(48)}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ title: '重命名会话' }),
+    });
+    assert.equal((await renamed.json()).title, '重命名会话');
+    const deleted = await fetch(`${base}/api/sessions/${session.id}`, {
+      method: 'DELETE',
+      headers: { authorization: `Bearer ${'a'.repeat(48)}` },
+    });
+    assert.equal((await deleted.json()).ok, true);
+    const missing = await fetch(`${base}/api/sessions/${session.id}`, { headers: { authorization: `Bearer ${'a'.repeat(48)}` } });
+    assert.equal(missing.status, 404);
     const page = await fetch(`${base}/`);
     assert.match(page.headers.get('content-security-policy'), /script-src 'self'/);
   } finally {
